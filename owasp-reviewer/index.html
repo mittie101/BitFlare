@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OWASP-Minded Frontend Code Review Bot</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Bot name</p>
+      <h1>OWASP-Minded Frontend Code Review Bot</h1>
+      <p class="lede">Upload or paste a frontend bundle to receive an evidence-based audit, prioritised fix plan, and copy-ready patches.</p>
+    </div>
+    <div class="status">
+      <span id="status-indicator" class="badge idle">Idle</span>
+      <button id="clear-all" class="ghost">Reset</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel" aria-labelledby="upload-title">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Section 1</p>
+          <h2 id="upload-title">Upload / Paste</h2>
+        </div>
+        <span class="helper">Accepted: .html, .css, .js, .json, .md, .ts, .tsx, .env.example</span>
+      </div>
+      <div class="grid two">
+        <div class="stack">
+          <label class="input-label" for="file-input">Upload files</label>
+          <input id="file-input" type="file" multiple aria-describedby="file-help" accept=".html,.css,.js,.json,.md,.ts,.tsx,.env.example" />
+          <p id="file-help" class="hint">Select one or more files. Names only are stored in history.</p>
+          <ul id="file-list" class="pill-list" aria-live="polite"></ul>
+        </div>
+        <div class="stack">
+          <label class="input-label" for="paste-bundle">Paste code bundle (optional)</label>
+          <textarea id="paste-bundle" rows="6" placeholder="Paste a combined code bundle or JSON payload"></textarea>
+          <p class="hint">Pasted bundles are treated as a single virtual file.</p>
+        </div>
+      </div>
+      <div class="grid three context-grid" aria-label="Context inputs">
+        <div class="stack">
+          <label class="input-label" for="app-type">App type</label>
+          <select id="app-type">
+            <option value="unknown">Unknown</option>
+            <option value="static">Static</option>
+            <option value="spa">SPA</option>
+            <option value="ssr">SSR</option>
+            <option value="hybrid">Hybrid</option>
+          </select>
+        </div>
+        <div class="stack">
+          <label class="input-label" for="deployment">Deployment</label>
+          <input id="deployment" type="text" placeholder="e.g., Netlify, Vercel, Cloudflare" />
+        </div>
+        <div class="stack">
+          <label class="input-label" for="calling-pattern">LLM calling pattern</label>
+          <select id="calling-pattern">
+            <option value="unknown">Unknown</option>
+            <option value="browser_direct">Browser direct</option>
+            <option value="server_proxy">Server proxy</option>
+          </select>
+        </div>
+        <div class="stack">
+          <label class="input-label" for="streaming">Streaming</label>
+          <select id="streaming">
+            <option value="unknown">Unknown</option>
+            <option value="enabled">Enabled</option>
+            <option value="disabled">Disabled</option>
+          </select>
+        </div>
+        <div class="stack">
+          <label class="input-label" for="auth-session">Auth/session</label>
+          <select id="auth-session">
+            <option value="unknown">Unknown</option>
+            <option value="none">None</option>
+            <option value="jwt">JWT</option>
+            <option value="cookies">Cookies</option>
+          </select>
+        </div>
+        <div class="stack">
+          <label class="input-label" for="data-storage">Data storage</label>
+          <select id="data-storage">
+            <option value="unknown">Unknown</option>
+            <option value="none">None</option>
+            <option value="localStorage">localStorage</option>
+            <option value="db">Database</option>
+          </select>
+        </div>
+        <div class="stack">
+          <label class="input-label" for="target-browsers">Target browsers</label>
+          <input id="target-browsers" type="text" placeholder="e.g., evergreen, Safari" />
+        </div>
+        <div class="stack">
+          <label class="input-label" for="compliance">Compliance needs</label>
+          <select id="compliance">
+            <option value="unknown">Unknown</option>
+            <option value="wcag">WCAG</option>
+            <option value="soc2ish">SOC2-ish</option>
+            <option value="none">None</option>
+          </select>
+        </div>
+        <div class="stack">
+          <label class="input-label" for="app-name">App name</label>
+          <input id="app-name" type="text" placeholder="Used in history entries" />
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="settings-title">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Section 2</p>
+          <h2 id="settings-title">Review Settings</h2>
+        </div>
+      </div>
+      <div class="grid three">
+        <div class="stack">
+          <label class="input-label" for="target-score">Target score</label>
+          <input id="target-score" type="number" min="0" max="100" value="95" />
+        </div>
+        <div class="stack">
+          <label class="input-label" for="strictness">Strictness</label>
+          <select id="strictness">
+            <option value="normal">Normal</option>
+            <option value="strict">Strict</option>
+          </select>
+        </div>
+        <div class="stack">
+          <label class="input-label" for="output-mode">Output</label>
+          <select id="output-mode">
+            <option value="json_markdown">JSON + Markdown</option>
+            <option value="json">JSON only</option>
+            <option value="markdown">Markdown only</option>
+          </select>
+        </div>
+      </div>
+      <label class="toggle">
+        <input id="assume-unknown" type="checkbox" checked />
+        <span>Assume missing files are UNKNOWN</span>
+      </label>
+      <div class="actions">
+        <button id="generate" class="primary">Generate review</button>
+        <span id="validation-warning" class="warning" role="status" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="output-title">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Section 3</p>
+          <h2 id="output-title">Output</h2>
+        </div>
+      </div>
+      <div id="warning-banner" class="alert hidden" role="alert"></div>
+      <div class="score-grid" aria-live="polite">
+        <div class="score-card"><p>Overall</p><strong id="overall-score">–</strong></div>
+        <div class="score-card"><p>Security</p><strong id="score-security">–</strong></div>
+        <div class="score-card"><p>Correctness</p><strong id="score-correctness">–</strong></div>
+        <div class="score-card"><p>UX</p><strong id="score-ux">–</strong></div>
+        <div class="score-card"><p>Accessibility</p><strong id="score-accessibility">–</strong></div>
+        <div class="score-card"><p>Performance</p><strong id="score-performance">–</strong></div>
+        <div class="score-card"><p>Maintainability</p><strong id="score-maintainability">–</strong></div>
+      </div>
+      <div class="grid two">
+        <div class="stack">
+          <h3>Summary</h3>
+          <div class="summary-block">
+            <h4>What works</h4>
+            <ul id="summary-works"></ul>
+            <h4>Top risks</h4>
+            <ul id="summary-risks"></ul>
+            <h4>Fastest path to 95+</h4>
+            <ul id="summary-fast"></ul>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="tabs">
+            <button class="tab active" data-tab="findings">Findings</button>
+            <button class="tab" data-tab="fix-plan">Fix Plan</button>
+            <button class="tab" data-tab="markdown">Markdown</button>
+          </div>
+          <div id="findings" class="tab-panel">
+            <div class="filter-row">
+              <label class="input-label" for="finding-filter">Filter</label>
+              <select id="finding-filter">
+                <option value="all">All</option>
+                <option value="security">Security</option>
+                <option value="correctness">Correctness</option>
+                <option value="ux">UX</option>
+                <option value="accessibility">A11y</option>
+                <option value="performance">Performance</option>
+                <option value="maintainability">Maintainability</option>
+              </select>
+            </div>
+            <ul id="findings-list" class="stacked-list"></ul>
+          </div>
+          <div id="fix-plan" class="tab-panel hidden">
+            <ol id="fix-plan-list" class="stacked-list"></ol>
+          </div>
+          <div id="markdown" class="tab-panel hidden">
+            <textarea id="markdown-output" readonly rows="16"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="copy-json" class="ghost">Copy JSON</button>
+        <button id="download-json" class="ghost">Download JSON</button>
+        <button id="download-markdown" class="ghost">Download Markdown</button>
+        <button id="save-history" class="secondary">Save to History</button>
+      </div>
+    </section>
+  </main>
+
+  <aside class="history" aria-label="History drawer">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Section 4</p>
+        <h2>History</h2>
+      </div>
+      <button id="toggle-history" class="ghost">Hide</button>
+    </div>
+    <ul id="history-list" class="stacked-list"></ul>
+  </aside>
+
+  <template id="finding-template">
+    <li class="finding">
+      <div class="finding-header">
+        <span class="badge"></span>
+        <div class="finding-meta">
+          <p class="title"></p>
+          <p class="subtitle"></p>
+        </div>
+      </div>
+      <p class="impact"></p>
+      <div class="evidence"></div>
+      <p class="recommendation"></p>
+    </li>
+  </template>
+
+  <template id="fix-template">
+    <li>
+      <div class="fix-head">
+        <span class="priority badge"></span>
+        <strong class="goal"></strong>
+      </div>
+      <ul class="steps"></ul>
+      <div class="patches"></div>
+    </li>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
